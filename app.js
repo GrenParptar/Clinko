@@ -158,10 +158,14 @@
     const pegSpacing = USABLE_WIDTH / pegsPerRow;
     for (let r = 0; r < rows; r++) {
       const y = PEG_TOP + r * ROW_GAP;
-      const offset = r % 2 === 0 ? pegSpacing / 2 : 0;
       const count = r % 2 === 0 ? pegsPerRow - 1 : pegsPerRow;
+      // Center each row within the usable width — rather than always
+      // anchoring its first peg at the left edge — so the leftover margin
+      // splits evenly between both sides instead of piling up on the right.
+      const rowWidth = (count - 1) * pegSpacing;
+      const rowStart = centerLeft + (USABLE_WIDTH - rowWidth) / 2;
       for (let c = 0; c < count; c++) {
-        const x = centerLeft + offset + c * pegSpacing;
+        const x = rowStart + c * pegSpacing;
         pegs.push(
           Bodies.circle(x, y, PEG_RADIUS, {
             isStatic: true,
@@ -213,11 +217,14 @@
     Events.on(render, "afterRender", drawSpheres);
 
     // Lay balls out at their starting spots right away — visible and named,
-    // sitting above the pegs — so you can see the field before committing
-    // to a drop. dropBalls() later spawns real physics bodies at these
-    // exact spots.
+    // evenly spaced and sitting above the pegs — so you can see the field
+    // before committing to a drop. dropBalls() later spawns real physics
+    // bodies at these exact spots.
     const entrants = parseEntrants(ballCount);
     const slotWidth = USABLE_WIDTH / ballCount;
+    // Shuffle which entrant sits in which slot so ball order isn't
+    // correlated with starting position, while the slots themselves stay
+    // perfectly equidistant.
     const slots = Array.from({ length: ballCount }, (_, i) => i);
     for (let i = slots.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -225,7 +232,7 @@
     }
     balls = entrants.map((entrant, i) => {
       const slot = slots[i];
-      const spawnX = centerLeft + slotWidth * (slot + 0.5) + (Math.random() - 0.5) * slotWidth * 0.6;
+      const spawnX = centerLeft + slotWidth * (slot + 0.5);
       const spawnY = 20 + Math.random() * 15;
       return { ...entrant, spawnX, spawnY, body: null, rank: null, stuckFrames: 0 };
     });
