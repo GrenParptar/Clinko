@@ -167,18 +167,17 @@ body {
 .board-wrap {
   display: flex;
   justify-content: center;
-  align-items: center;
   padding: 10px;
+  max-height: 82vh;
+  overflow: auto;
 }
 
 #board {
-  width: 100%;
-  max-width: 900px;
-  height: auto;
-  aspect-ratio: 9 / 7;
+  display: block;
   background: #0a0c17;
   border-radius: 10px;
   border: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .results {

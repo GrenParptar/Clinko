@@ -1,18 +1,17 @@
 // Clinko — a physics-driven Plinko-style randomizer built on Matter.js
-// Drops N balls through a peg field; each ball settles into a bottom chute,
-// and finishing places are derived from chute position (left→right by
-// default) with arrival order breaking ties within a chute.
+// All balls drop at the same time through a chaotic peg field, then funnel
+// into a single narrow chute. Since only one ball fits through at a time,
+// the order in which they pass the funnel's neck IS the finishing order —
+// they physically stack up below it, 1st place at the bottom.
 
 (function () {
-  const { Engine, Render, Runner, World, Bodies, Body, Events, Composite } = Matter;
+  const { Engine, Render, Runner, World, Bodies, Body, Events } = Matter;
 
   const canvas = document.getElementById("board");
+  const boardWrap = document.getElementById("boardWrap");
   const ballCountInput = document.getElementById("ballCount");
   const rowCountInput = document.getElementById("rowCount");
   const rowCountOut = document.getElementById("rowCountOut");
-  const dropIntervalInput = document.getElementById("dropInterval");
-  const dropIntervalOut = document.getElementById("dropIntervalOut");
-  const reverseRankInput = document.getElementById("reverseRank");
   const namesInput = document.getElementById("names");
   const buildBtn = document.getElementById("buildBtn");
   const dropBtn = document.getElementById("dropBtn");
@@ -21,29 +20,29 @@
   const resultsList = document.getElementById("resultsList");
 
   rowCountInput.addEventListener("input", () => (rowCountOut.textContent = rowCountInput.value));
-  dropIntervalInput.addEventListener("input", () => (dropIntervalOut.textContent = `${dropIntervalInput.value}ms`));
 
-  const W = canvas.width;
-  const H = canvas.height;
-  const PEG_TOP = 90;
-  const PEG_BOTTOM = H - 170;
-  const CHUTE_TOP = H - 140;
-  const CHUTE_FLOOR = H - 30;
+  const W = 900;
+  const PEG_TOP = 70;
+  const ROW_GAP = 30;
+  const USABLE_WIDTH = W * 0.82;
+  const FUNNEL_GAP = 16;
+  const FUNNEL_HEIGHT = 140;
+  const BOTTOM_MARGIN = 30;
+
+  const BALL_RADIUS = 9;
+  const BALL_DIAMETER = BALL_RADIUS * 2;
+  const PEG_RADIUS = 6;
 
   let engine, render, runner;
-  let pegRadius = 6;
-  let ballRadius = 9;
-  let chuteCount = 11;
-  let chuteWidth = W / chuteCount;
-  let balls = []; // { body, name, color, settled, settleIndex, chute }
+  let neckWidth, tubeTop, floorY, H;
+  let balls = [];
   let settledOrder = [];
-  let dropTimer = null;
   let boardBuilt = false;
+  let finishLineY = 0;
 
-  const PALETTE_COUNT = 24;
   function colorForIndex(i) {
-    const hue = Math.round((360 / PALETTE_COUNT) * (i % PALETTE_COUNT));
-    return `hsl(${hue} 80% 62%)`;
+    const hue = Math.round((360 / 24) * (i % 24));
+    return hue;
   }
 
   function setStatus(msg) {
@@ -55,10 +54,6 @@
   }
 
   function teardownBoard() {
-    if (dropTimer) {
-      clearInterval(dropTimer);
-      dropTimer = null;
-    }
     if (runner) Runner.stop(runner);
     if (render) {
       Render.stop(render);
@@ -70,13 +65,46 @@
     boardBuilt = false;
   }
 
+  function computeGeometry(rows, ballCount) {
+    const pegBottom = PEG_TOP + (rows - 1) * ROW_GAP;
+    const fTop = pegBottom + FUNNEL_GAP;
+    // Wide enough to cut down on arch-jamming above the neck, but still
+    // strictly under 2 ball-diameters so two balls can never pass side by
+    // side — order through the neck stays physically guaranteed.
+    neckWidth = BALL_DIAMETER * 1.7;
+    const fBottom = fTop + FUNNEL_HEIGHT;
+    const tubeHeight = Math.max(160, ballCount * BALL_DIAMETER * 1.06 + 20);
+    tubeTop = fBottom;
+    floorY = tubeTop + tubeHeight;
+    finishLineY = tubeTop + 4;
+    H = floorY + BOTTOM_MARGIN;
+    return { pegBottom, fTop, fBottom };
+  }
+
+  function wallFromPoints(x1, y1, x2, y2, thickness) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const length = Math.hypot(dx, dy);
+    const angle = Math.atan2(dy, dx);
+    const cx = (x1 + x2) / 2;
+    const cy = (y1 + y2) / 2;
+    return Bodies.rectangle(cx, cy, length, thickness, {
+      isStatic: true,
+      angle,
+      render: { fillStyle: "#2c3253" },
+    });
+  }
+
   function buildBoard() {
     teardownBoard();
     clearResults();
 
     const rows = parseInt(rowCountInput.value, 10);
-    chuteCount = rows + 1;
-    chuteWidth = W / chuteCount;
+    const ballCount = Math.max(1, Math.min(80, parseInt(ballCountInput.value, 10) || 1));
+    const { pegBottom, fTop, fBottom } = computeGeometry(rows, ballCount);
+
+    canvas.width = W;
+    canvas.height = H;
 
     engine = Engine.create();
     engine.gravity.y = 1;
@@ -84,12 +112,7 @@
     render = Render.create({
       canvas,
       engine,
-      options: {
-        width: W,
-        height: H,
-        wireframes: false,
-        background: "#0a0c17",
-      },
+      options: { width: W, height: H, wireframes: false, background: "#0a0c17" },
     });
 
     const wallOpts = { isStatic: true, render: { fillStyle: "#232849" } };
@@ -98,67 +121,71 @@
       Bodies.rectangle(W + 10, H / 2, 20, H, wallOpts),
     ];
 
-    // Peg field: triangular grid, funnel-shaped (rows grow wider going down)
+    // Peg field — a classic alternating Galton-board lattice for chaotic bouncing
     const pegs = [];
-    const rowGap = (PEG_BOTTOM - PEG_TOP) / (rows - 1);
+    const pegsPerRow = rows + 1;
+    const pegSpacing = USABLE_WIDTH / pegsPerRow;
+    const centerLeft = (W - USABLE_WIDTH) / 2;
     for (let r = 0; r < rows; r++) {
-      const y = PEG_TOP + r * rowGap;
-      const count = 3 + r; // widens each row
-      const usableWidth = W * 0.86;
-      const startX = (W - usableWidth) / 2 + (usableWidth / (count - 1 || 1)) * 0;
-      const spacing = usableWidth / (Math.max(chuteCount - 1, count - 1));
-      const rowWidth = spacing * (count - 1);
-      const left = (W - rowWidth) / 2;
+      const y = PEG_TOP + r * ROW_GAP;
+      const offset = r % 2 === 0 ? pegSpacing / 2 : 0;
+      const count = r % 2 === 0 ? pegsPerRow - 1 : pegsPerRow;
       for (let c = 0; c < count; c++) {
-        const x = left + c * spacing;
+        const x = centerLeft + offset + c * pegSpacing;
         pegs.push(
-          Bodies.circle(x, y, pegRadius, {
+          Bodies.circle(x, y, PEG_RADIUS, {
             isStatic: true,
             restitution: 0.5,
             friction: 0.05,
-            render: { fillStyle: "#5da2ff" },
+            render: { visible: false },
+            plugin: { isPeg: true },
           })
         );
       }
     }
 
-    // Bottom chute dividers
-    const dividers = [];
-    for (let i = 0; i <= chuteCount; i++) {
-      const x = i * chuteWidth;
-      dividers.push(
-        Bodies.rectangle(x, (CHUTE_TOP + CHUTE_FLOOR) / 2, 4, CHUTE_FLOOR - CHUTE_TOP, {
-          isStatic: true,
-          render: { fillStyle: "#2c3253" },
-        })
-      );
-    }
+    // Funnel: two angled walls narrowing from the full peg field down to one neck
+    const funnel = [
+      wallFromPoints(centerLeft, fTop, W / 2 - neckWidth / 2, fBottom, 8),
+      wallFromPoints(centerLeft + USABLE_WIDTH, fTop, W / 2 + neckWidth / 2, fBottom, 8),
+    ];
 
-    const floor = Bodies.rectangle(W / 2, CHUTE_FLOOR + 10, W, 20, {
+    // Single-file tube below the funnel where balls stack in arrival order
+    const tube = [
+      Bodies.rectangle(W / 2 - neckWidth / 2, (tubeTop + floorY) / 2, 6, floorY - tubeTop, {
+        isStatic: true,
+        render: { fillStyle: "#2c3253" },
+      }),
+      Bodies.rectangle(W / 2 + neckWidth / 2, (tubeTop + floorY) / 2, 6, floorY - tubeTop, {
+        isStatic: true,
+        render: { fillStyle: "#2c3253" },
+      }),
+    ];
+
+    const floor = Bodies.rectangle(W / 2, floorY + 10, neckWidth + 20, 20, {
       isStatic: true,
       render: { fillStyle: "#232849" },
     });
 
-    World.add(engine.world, [...walls, ...pegs, ...dividers, floor]);
+    World.add(engine.world, [...walls, ...pegs, ...funnel, ...tube, floor]);
 
     runner = Runner.create();
     Runner.run(runner, engine);
     Render.run(render);
 
-    Events.on(engine, "afterUpdate", checkSettled);
+    Events.on(engine, "afterUpdate", checkFinishLine);
+    Events.on(render, "afterRender", drawSpheres);
 
     boardBuilt = true;
     dropBtn.disabled = false;
     buildBtn.textContent = "Rebuild Board";
-    setStatus(`Board ready: ${rows} rows, ${chuteCount} chutes. Click <strong>Drop Balls</strong> when ready.`);
+    setStatus(`Board ready: ${rows} peg rows funneling into one chute. Click <strong>Drop Balls</strong> when ready.`);
   }
 
   function parseNames(count) {
     const raw = namesInput.value.split("\n").map((s) => s.trim()).filter(Boolean);
     const names = [];
-    for (let i = 0; i < count; i++) {
-      names.push(raw[i] || `Ball ${i + 1}`);
-    }
+    for (let i = 0; i < count; i++) names.push(raw[i] || `Ball ${i + 1}`);
     return names;
   }
 
@@ -171,98 +198,82 @@
     clearResults();
     dropBtn.disabled = true;
     buildBtn.disabled = true;
-    setStatus(`Dropping ${count} balls…`);
+    setStatus(`${count} balls dropping at once…`);
 
-    let i = 0;
-    if (dropTimer) clearInterval(dropTimer);
-    const interval = parseInt(dropIntervalInput.value, 10);
-    dropTimer = setInterval(() => {
-      if (i >= count) {
-        clearInterval(dropTimer);
-        dropTimer = null;
-        return;
-      }
-      spawnBall(i, names[i]);
-      i++;
-    }, interval);
+    const centerLeft = (W - USABLE_WIDTH) / 2;
+    const slotWidth = USABLE_WIDTH / count;
+    // Shuffle spawn slots so ball order isn't correlated with starting position
+    const slots = Array.from({ length: count }, (_, i) => i);
+    for (let i = slots.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [slots[i], slots[j]] = [slots[j], slots[i]];
+    }
+
+    for (let i = 0; i < count; i++) {
+      const slot = slots[i];
+      const x = centerLeft + slotWidth * (slot + 0.5) + (Math.random() - 0.5) * slotWidth * 0.6;
+      const y = 20 + Math.random() * 15;
+      const hue = colorForIndex(i);
+      const body = Bodies.circle(x, y, BALL_RADIUS, {
+        restitution: 0.55,
+        friction: 0.02,
+        frictionAir: 0.0008,
+        density: 0.002,
+        render: { visible: false },
+      });
+      Body.setVelocity(body, { x: (Math.random() - 0.5) * 1.2, y: 0 });
+      World.add(engine.world, body);
+      balls.push({ body, name: names[i], hue, rank: null, stuckFrames: 0 });
+    }
   }
 
-  function spawnBall(index, name) {
-    const jitter = (Math.random() - 0.5) * W * 0.12;
-    const x = W / 2 + jitter;
-    const y = 20;
-    const color = colorForIndex(index);
-    const body = Bodies.circle(x, y, ballRadius, {
-      restitution: 0.55,
-      friction: 0.02,
-      frictionAir: 0.0008,
-      density: 0.002,
-      render: { fillStyle: color },
-    });
-    Body.setVelocity(body, { x: (Math.random() - 0.5) * 1.5, y: 0 });
-    World.add(engine.world, body);
-    balls.push({ body, name, color, settled: false, settleIndex: null, chute: null, restFrames: 0 });
-  }
-
-  function checkSettled() {
-    if (!balls.length) return;
-    let allSettled = true;
+  function checkFinishLine() {
+    if (!balls.length || settledOrder.length === balls.length) return;
     for (const b of balls) {
-      if (b.settled) continue;
-      allSettled = false;
+      if (b.rank !== null) continue;
+      if (b.body.position.y >= finishLineY) {
+        b.rank = settledOrder.length + 1;
+        settledOrder.push(b);
+        renderStandings();
+        continue;
+      }
+      // Anti-jam: balls funneling above the neck can occasionally arch
+      // and lock against each other (a real granular-flow phenomenon).
+      // If a ball sits nearly still for too long before reaching the
+      // finish line, nudge it to break the arch.
       const speed = Math.hypot(b.body.velocity.x, b.body.velocity.y);
-      const nearFloor = b.body.position.y > CHUTE_TOP - 10;
-      if (nearFloor && speed < 0.15) {
-        b.restFrames++;
+      if (speed < 0.12) {
+        b.stuckFrames++;
+        if (b.stuckFrames > 45) {
+          Body.applyForce(b.body, b.body.position, {
+            x: (Math.random() - 0.5) * 0.006,
+            y: 0.002 + Math.random() * 0.004,
+          });
+          b.stuckFrames = 0;
+        }
       } else {
-        b.restFrames = 0;
-      }
-      if (b.restFrames > 18) {
-        settleBall(b);
+        b.stuckFrames = 0;
       }
     }
-    if (allSettled && balls.length) {
-      finishRound();
+    if (settledOrder.length === balls.length) {
+      dropBtn.disabled = false;
+      buildBtn.disabled = false;
+      setStatus(`All ${balls.length} balls are through the funnel — final standings below! Click <strong>Drop Balls</strong> to run again.`);
     }
-  }
-
-  function settleBall(b) {
-    b.settled = true;
-    b.settleIndex = settledOrder.length;
-    b.chute = Math.min(chuteCount - 1, Math.max(0, Math.floor(b.body.position.x / chuteWidth)));
-    settledOrder.push(b);
-    renderStandings();
-  }
-
-  function finishRound() {
-    dropBtn.disabled = false;
-    buildBtn.disabled = false;
-    setStatus(`All balls have settled! Final standings below. Click <strong>Drop Balls</strong> to run again, or <strong>Reset</strong> to reconfigure.`);
   }
 
   function renderStandings() {
-    const reversed = reverseRankInput.checked;
-    const sorted = [...settledOrder].sort((a, b) => {
-      const chuteA = reversed ? chuteCount - 1 - a.chute : a.chute;
-      const chuteB = reversed ? chuteCount - 1 - b.chute : b.chute;
-      if (chuteA !== chuteB) return chuteA - chuteB;
-      return a.settleIndex - b.settleIndex;
-    });
-
     resultsList.innerHTML = "";
-    sorted.forEach((b, i) => {
-      const rank = i + 1;
+    settledOrder.forEach((b) => {
       const li = document.createElement("li");
-      li.className = `result-row rank-${rank}`;
+      li.className = `result-row rank-${b.rank}`;
       li.innerHTML = `
-        <span class="rank">${rank}</span>
-        <span class="swatch" style="background:${b.color}"></span>
+        <span class="rank">${b.rank}</span>
+        <span class="swatch" style="background:hsl(${b.hue} 80% 62%)"></span>
         <span class="name">${escapeHtml(b.name)}</span>
-        <span class="chute">chute ${b.chute + 1}</span>
       `;
       resultsList.appendChild(li);
     });
-
     const pending = balls.length - settledOrder.length;
     if (pending > 0) {
       const li = document.createElement("li");
@@ -270,6 +281,53 @@
       li.textContent = `${pending} ball${pending === 1 ? "" : "s"} still falling…`;
       resultsList.appendChild(li);
     }
+  }
+
+  // --- 3D-look rendering ---------------------------------------------
+
+  function sphereGradient(ctx, x, y, r, hue) {
+    const grad = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r * 1.05);
+    grad.addColorStop(0, `hsl(${hue} 95% 88%)`);
+    grad.addColorStop(0.45, `hsl(${hue} 85% 62%)`);
+    grad.addColorStop(1, `hsl(${hue} 70% 32%)`);
+    return grad;
+  }
+
+  function drawSpheres() {
+    if (!render) return;
+    const ctx = render.context;
+
+    // pegs as small steel spheres
+    const pegBodies = Matter.Composite.allBodies(engine.world).filter((b) => b.plugin && b.plugin.isPeg);
+    ctx.save();
+    for (const p of pegBodies) {
+      ctx.beginPath();
+      ctx.fillStyle = sphereGradient(ctx, p.position.x, p.position.y, PEG_RADIUS, 220);
+      ctx.arc(p.position.x, p.position.y, PEG_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // balls as glossy 3D spheres, with a rank tag once they've crossed the finish line
+    ctx.save();
+    for (const b of balls) {
+      const { x, y } = b.body.position;
+      ctx.beginPath();
+      ctx.fillStyle = sphereGradient(ctx, x, y, BALL_RADIUS, b.hue);
+      ctx.arc(x, y, BALL_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = `hsl(${b.hue} 60% 20%)`;
+      ctx.stroke();
+
+      if (b.rank !== null) {
+        ctx.font = "bold 12px system-ui, sans-serif";
+        ctx.fillStyle = "#e9ebf7";
+        ctx.textBaseline = "middle";
+        ctx.fillText(`#${b.rank}`, x + neckWidth / 2 + 10, y);
+      }
+    }
+    ctx.restore();
   }
 
   function escapeHtml(str) {
@@ -288,5 +346,4 @@
     buildBtn.textContent = "Build Board";
     setStatus("Set your options and click <strong>Build Board</strong> to begin.");
   });
-  reverseRankInput.addEventListener("change", renderStandings);
 })();

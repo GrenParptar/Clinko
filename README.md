@@ -1,41 +1,45 @@
 # 🎯 Clinko — Physics Randomizer
 
-Clinko is a Plinko-style randomizer that uses real 2D physics ([Matter.js](https://brm.io/matter-js/)) to drop a batch of balls through a peg field and funnel them into numbered chutes at the bottom. Where each ball lands determines its finishing place — a fun, visual, verifiably "physical" way to randomize a list of names, raffle entries, draft order, or anything else.
+Clinko is a Plinko-style randomizer that uses real 2D physics ([Matter.js](https://brm.io/matter-js/)) to drop a batch of glossy 3D balls, all at once, through a peg field. Every ball funnels into a **single narrow chute** at the bottom — since only one ball can fit through at a time, the order in which balls pass that pinch point *is* the finishing order, and they physically stack up beneath it: 1st place at the very bottom, 2nd on top of that, and so on.
 
 **[Open Clinko](index.html)** — it's a static, single-page app with no build step or server required.
 
 ## How it works
 
-1. **Set up** — choose how many balls to drop, how many peg rows the board has (more rows = more chutes = finer-grained results), how fast balls are released, and optionally paste in a list of names (one per line) to label each ball.
-2. **Build Board** — generates a fresh triangular peg field sized to your row count, with dividers creating one chute per possible landing column.
-3. **Drop Balls** — balls are released one at a time from the top center with a small random horizontal offset, so each run is different even with identical settings. They bounce down through the pegs under real gravity/collision physics and settle into a chute at the bottom.
-4. **Standings** — as each ball comes to rest, it's added live to the standings list. Final **rank** is determined primarily by which chute a ball lands in (chute 1 = leftmost by default, or rightmost if you check "Reverse rank direction"), with ties inside the same chute broken by arrival order.
+1. **Set up** — choose how many balls to drop, how many peg rows the board has (more rows = more chaotic bouncing before the funnel), and optionally paste in a list of names (one per line) to label each ball.
+2. **Build Board** — generates a fresh peg lattice sized to your row count, narrowing below into a funnel and then a single-file chute down to the floor.
+3. **Drop Balls** — every ball is released **at the same instant**, spread across the top with a randomized starting spot, so each run plays out differently even with identical settings. They bounce down through the pegs under real gravity and collisions, get squeezed together by the funnel, and pass through the neck one at a time.
+4. **Standings** — the moment a ball crosses the funnel's neck (the finish line), it's added live to the standings — that crossing order is its final rank, and it can never be passed once it's below the neck, so the on-screen stack always matches the leaderboard.
 
 ## Features
 
-- Configurable ball count (1–80), peg row count (6–16), and drop pacing
+- Configurable ball count (1–80) and peg row count (6–16)
+- All balls drop simultaneously — no staggered releases
+- Glossy, shaded **3D-look spheres** (radial-gradient rendering) for both balls and pegs
+- A single funnel/chute design — no multiple landing zones, just one clean finishing order
+- Live-updating standings as each ball crosses the finish line, with an in-board rank tag next to every ball
+- Anti-jam nudging so balls arching above the narrow neck (a real granular-flow phenomenon) get jostled loose automatically
 - Optional custom names per ball, auto-labeled `Ball N` otherwise
-- Live-updating standings as balls finish
-- Reversible ranking direction (left→right or right→left)
 - Rebuild the board or re-run drops with the same settings at any time
 - Pure client-side HTML/CSS/JS — works from a local file or any static host
 
 ## Files
 
-| File         | Purpose                                   |
-|--------------|--------------------------------------------|
-| `index.html` | Page structure and controls               |
-| `style.css`  | Dark-themed responsive styling             |
-| `app.js`     | Matter.js physics setup, drop/settle logic, and standings rendering |
+| File                 | Purpose                                                        |
+|----------------------|------------------------------------------------------------------|
+| `index.html`         | Page structure and controls                                    |
+| `style.css`          | Dark-themed responsive styling                                 |
+| `app.js`             | Matter.js physics setup, funnel/finish-line logic, 3D sphere rendering, and standings |
+| `vendor/matter.min.js` | Vendored copy of Matter.js so the app runs fully offline      |
 
 ## Running locally
 
-Just open `index.html` in a browser — no install or server needed (Matter.js is loaded from a CDN). For local development with live reload, any static file server works, e.g.:
+Just open `index.html` in a browser — no install or server needed (Matter.js is bundled locally in `vendor/`). For local development with live reload, any static file server works, e.g.:
 
 ```bash
 npx serve .
 ```
 
-## Notes on randomness
+## Notes on randomness & board size
 
-Results are driven by chaotic peg collisions plus a randomized horizontal starting offset for each ball, so outcomes aren't easily predictable or reproducible run-to-run — similar in spirit to a real-world Galton board / Plinko drop.
+Results come from chaotic peg collisions plus a randomized starting position for each ball, so outcomes aren't predictable or reproducible run-to-run — similar in spirit to a real-world Galton board. The chute below the funnel grows taller to fit however many balls you drop, so the board (and page) can get tall for large ball counts; the board panel scrolls independently so the rest of the page stays put.

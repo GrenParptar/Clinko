@@ -11,7 +11,7 @@
   <div class="app">
     <header class="app__header">
       <h1>🎯 Clinko</h1>
-      <p class="tagline">A physics-powered Plinko randomizer — drop balls, watch them fall, get your finishing order.</p>
+      <p class="tagline">A physics-powered Plinko randomizer — drop 3D balls at once, watch them race through the pegs and funnel into one chute in finishing order.</p>
     </header>
 
     <main class="layout">
@@ -30,17 +30,6 @@
         </label>
 
         <label class="field">
-          <span>Drop speed (ms between balls)</span>
-          <input type="range" id="dropInterval" min="20" max="400" step="10" value="120" />
-          <output id="dropIntervalOut">120ms</output>
-        </label>
-
-        <label class="field checkbox">
-          <input type="checkbox" id="reverseRank" />
-          <span>Reverse rank direction (right → left = 1st)</span>
-        </label>
-
-        <label class="field">
           <span>Entrant names (optional, one per line)</span>
           <textarea id="names" rows="6" placeholder="Alex&#10;Sam&#10;Jordan&#10;...&#10;(leave blank for auto names)"></textarea>
         </label>
@@ -54,7 +43,7 @@
         <p class="hint" id="statusLine">Set your options and click <strong>Build Board</strong> to begin.</p>
       </section>
 
-      <section class="panel board-wrap" aria-label="Board">
+      <section class="panel board-wrap" id="boardWrap" aria-label="Board">
         <canvas id="board" width="900" height="700"></canvas>
       </section>
 
@@ -67,7 +56,7 @@
     </main>
 
     <footer class="app__footer">
-      <span>Physics by Matter.js · Rank = chute landed in, ties broken by arrival order.</span>
+      <span>Physics by Matter.js · Rank = order of arrival through the funnel.</span>
     </footer>
   </div>
 
