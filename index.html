@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clinko — Physics Randomizer</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎯</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app__header">
+      <h1>🎯 Clinko</h1>
+      <p class="tagline">A physics-powered Plinko randomizer — drop balls, watch them fall, get your finishing order.</p>
+    </header>
+
+    <main class="layout">
+      <section class="panel controls" aria-label="Setup">
+        <h2>Setup</h2>
+
+        <label class="field">
+          <span>Number of balls</span>
+          <input type="number" id="ballCount" min="1" max="80" value="12" />
+        </label>
+
+        <label class="field">
+          <span>Peg rows</span>
+          <input type="range" id="rowCount" min="6" max="16" value="10" />
+          <output id="rowCountOut">10</output>
+        </label>
+
+        <label class="field">
+          <span>Drop speed (ms between balls)</span>
+          <input type="range" id="dropInterval" min="20" max="400" step="10" value="120" />
+          <output id="dropIntervalOut">120ms</output>
+        </label>
+
+        <label class="field checkbox">
+          <input type="checkbox" id="reverseRank" />
+          <span>Reverse rank direction (right → left = 1st)</span>
+        </label>
+
+        <label class="field">
+          <span>Entrant names (optional, one per line)</span>
+          <textarea id="names" rows="6" placeholder="Alex&#10;Sam&#10;Jordan&#10;...&#10;(leave blank for auto names)"></textarea>
+        </label>
+
+        <div class="button-row">
+          <button id="buildBtn" class="btn btn--primary">Build Board</button>
+          <button id="dropBtn" class="btn btn--accent" disabled>Drop Balls</button>
+          <button id="resetBtn" class="btn">Reset</button>
+        </div>
+
+        <p class="hint" id="statusLine">Set your options and click <strong>Build Board</strong> to begin.</p>
+      </section>
+
+      <section class="panel board-wrap" aria-label="Board">
+        <canvas id="board" width="900" height="700"></canvas>
+      </section>
+
+      <section class="panel results" aria-label="Results">
+        <h2>Standings</h2>
+        <ol id="resultsList" class="results-list">
+          <li class="empty">No balls have finished yet.</li>
+        </ol>
+      </section>
+    </main>
+
+    <footer class="app__footer">
+      <span>Physics by Matter.js · Rank = chute landed in, ties broken by arrival order.</span>
+    </footer>
+  </div>
+
+  <script src="vendor/matter.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
