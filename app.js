@@ -22,16 +22,23 @@
   rowCountInput.addEventListener("input", () => (rowCountOut.textContent = rowCountInput.value));
 
   const W = 900;
-  const PEG_TOP = 70;
-  const ROW_GAP = 30;
+  const PEG_TOP = 90;
+  const ROW_GAP = 58;
   const USABLE_WIDTH = W * 0.82;
-  const FUNNEL_GAP = 16;
-  const FUNNEL_HEIGHT = 140;
+  const FUNNEL_GAP = 24;
+  const FUNNEL_HEIGHT = 170;
   const BOTTOM_MARGIN = 30;
 
-  const BALL_RADIUS = 9;
+  const BALL_RADIUS = 17;
   const BALL_DIAMETER = BALL_RADIUS * 2;
-  const PEG_RADIUS = 6;
+  const PEG_RADIUS = 11;
+
+  // Exaggerated, slow-motion physics: light gravity + a global slow-mo
+  // factor so falls take longer, combined with high restitution so
+  // collisions still bounce big and dramatic rather than looking floaty.
+  const GRAVITY_Y = 0.7;
+  const TIME_SCALE = 0.62;
+  const BALL_RESTITUTION = 0.92;
 
   let engine, render, runner;
   let neckWidth, tubeTop, floorY, H;
@@ -105,9 +112,14 @@
 
     canvas.width = W;
     canvas.height = H;
+    // Force exact 1:1 pixel mapping so nothing (e.g. flex stretch) can
+    // non-uniformly scale the canvas and distort circles into ovals.
+    canvas.style.width = `${W}px`;
+    canvas.style.height = `${H}px`;
 
     engine = Engine.create();
-    engine.gravity.y = 1;
+    engine.gravity.y = GRAVITY_Y;
+    engine.timing.timeScale = TIME_SCALE;
 
     render = Render.create({
       canvas,
@@ -121,9 +133,12 @@
       Bodies.rectangle(W + 10, H / 2, 20, H, wallOpts),
     ];
 
-    // Peg field — a classic alternating Galton-board lattice for chaotic bouncing
+    // Peg field — a classic alternating Galton-board lattice for chaotic bouncing.
+    // Horizontal density is sized off the ball/peg dimensions (not the row
+    // count) so bigger balls always have a wide-enough gap to fall through.
     const pegs = [];
-    const pegsPerRow = rows + 1;
+    const minPegSpacing = BALL_DIAMETER * 1.35 + PEG_RADIUS * 2;
+    const pegsPerRow = Math.max(3, Math.floor(USABLE_WIDTH / minPegSpacing));
     const pegSpacing = USABLE_WIDTH / pegsPerRow;
     const centerLeft = (W - USABLE_WIDTH) / 2;
     for (let r = 0; r < rows; r++) {
@@ -135,7 +150,7 @@
         pegs.push(
           Bodies.circle(x, y, PEG_RADIUS, {
             isStatic: true,
-            restitution: 0.5,
+            restitution: 0.7,
             friction: 0.05,
             render: { visible: false },
             plugin: { isPeg: true },
@@ -215,9 +230,9 @@
       const y = 20 + Math.random() * 15;
       const hue = colorForIndex(i);
       const body = Bodies.circle(x, y, BALL_RADIUS, {
-        restitution: 0.55,
-        friction: 0.02,
-        frictionAir: 0.0008,
+        restitution: BALL_RESTITUTION,
+        friction: 0.01,
+        frictionAir: 0.0004,
         density: 0.002,
         render: { visible: false },
       });
@@ -242,12 +257,13 @@
       // If a ball sits nearly still for too long before reaching the
       // finish line, nudge it to break the arch.
       const speed = Math.hypot(b.body.velocity.x, b.body.velocity.y);
-      if (speed < 0.12) {
+      if (speed < 0.08) {
         b.stuckFrames++;
-        if (b.stuckFrames > 45) {
+        if (b.stuckFrames > 70) {
+          const m = b.body.mass;
           Body.applyForce(b.body, b.body.position, {
-            x: (Math.random() - 0.5) * 0.006,
-            y: 0.002 + Math.random() * 0.004,
+            x: (Math.random() - 0.5) * 0.01 * m,
+            y: (0.004 + Math.random() * 0.006) * m,
           });
           b.stuckFrames = 0;
         }

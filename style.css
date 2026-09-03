@@ -167,6 +167,7 @@ body {
 .board-wrap {
   display: flex;
   justify-content: center;
+  align-items: flex-start;
   padding: 10px;
   max-height: 82vh;
   overflow: auto;
