@@ -30,13 +30,14 @@
         </label>
 
         <label class="field">
-          <span>Entrant names (optional, one per line)</span>
-          <textarea id="names" rows="6" placeholder="Alex&#10;Sam&#10;Jordan&#10;...&#10;(leave blank for auto names)"></textarea>
+          <span>Entrant names &amp; colors (optional, one per line)</span>
+          <textarea id="names" rows="7" placeholder="Alex, gold&#10;Sam, #5da2ff&#10;Jordan&#10;...&#10;(leave blank for auto names/colors)"></textarea>
+          <span class="field-note">Format: <code>Name</code> or <code>Name, color</code> — any CSS color works (hex, rgb, or a name like <code>gold</code>).</span>
         </label>
 
         <div class="button-row">
           <button id="buildBtn" class="btn btn--primary">Build Board</button>
-          <button id="dropBtn" class="btn btn--accent" disabled>Drop Balls</button>
+          <button id="dropBtn" class="btn btn--accent" hidden>Drop Balls</button>
           <button id="resetBtn" class="btn">Reset</button>
         </div>
 

@@ -6,22 +6,24 @@ Clinko is a Plinko-style randomizer that uses real 2D physics ([Matter.js](https
 
 ## How it works
 
-1. **Set up** — choose how many balls to drop, how many peg rows the board has (more rows = more chaotic bouncing before the funnel), and optionally paste in a list of names (one per line) to label each ball.
-2. **Build Board** — generates a fresh peg lattice sized to your row count, narrowing below into a funnel and then a single-file chute down to the floor.
-3. **Drop Balls** — every ball is released **at the same instant**, spread across the top with a randomized starting spot, so each run plays out differently even with identical settings. They bounce down through the pegs under real gravity and collisions, get squeezed together by the funnel, and pass through the neck one at a time.
+1. **Set up** — choose how many balls to drop, how many peg rows the board has (more rows = a longer, more chaotic fall before the funnel), and optionally list entrants (one per line) to name and color each ball: `Name` or `Name, color` — any valid CSS color (hex, `rgb()`, or a named color like `gold`) works, and an invalid or missing color just falls back to an auto-assigned one.
+2. **Build Board** — generates a fresh peg lattice sized to your row count, narrowing below into a funnel and then a single-file chute down to the floor. All the balls appear immediately at their starting spots at the top, named and colored, so you can see the whole field before anything drops.
+3. **Drop Balls** — every ball is released **at the same instant** from right where it was waiting, so each run plays out differently even with identical settings. They bounce down through the pegs under real gravity and collisions, get squeezed together by the funnel, and pass through the neck one at a time.
 4. **Standings** — the moment a ball crosses the funnel's neck (the finish line), it's added live to the standings — that crossing order is its final rank, and it can never be passed once it's below the neck, so the on-screen stack always matches the leaderboard.
 
 ## Features
 
 - Configurable ball count (1–80) and peg row count (6–20, for a longer or shorter drop)
+- Balls appear immediately after **Build Board**, sitting at their starting spots — the **Drop Balls** button only shows up once the board (and preview) is ready
 - All balls drop simultaneously — no staggered releases
-- Big, glossy, shaded **3D-look spheres** (radial-gradient rendering) for both balls and pegs, with exaggerated bouncy, slow-motion physics
+- Big, glossy, shaded **3D-look spheres** (radial-gradient rendering) for both balls and pegs, each labeled with its own name, with exaggerated bouncy, slow-motion physics
+- Optional custom name **and color** per entrant (`Name, color` — any CSS color), auto-assigned when left out
 - A near-full-screen board with a long peg field, so balls travel a good distance before reaching the funnel
-- Solid guide walls run flush with the peg field's outer edge the whole way down — there's no gap beside the pegs, so a ball can never just slide down the side and skip the obstacle course
+- Solid guide walls run flush with the peg field's outer edge the whole way down on both sides — there's no gap beside the pegs, so a ball can never just slide down a side and skip the obstacle course
+- A speed cap on every ball each physics step so a big bounce can never tunnel clean through a wall between frames
 - A single funnel/chute design — no multiple landing zones, just one clean finishing order
 - Live-updating standings as each ball crosses the finish line, with an in-board rank tag next to every ball
 - Anti-jam nudging so balls arching above the narrow neck (a real granular-flow phenomenon) get jostled loose automatically
-- Optional custom names per ball, auto-labeled `Ball N` otherwise
 - Rebuild the board or re-run drops with the same settings at any time
 - Pure client-side HTML/CSS/JS — works from a local file or any static host
 

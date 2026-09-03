@@ -120,6 +120,19 @@ body {
   font-size: 0.8rem;
 }
 
+.field-note {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+.field-note code {
+  background: #0c0e1a;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-size: 0.72rem;
+}
+
 .button-row {
   display: flex;
   gap: 8px;
