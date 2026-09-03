@@ -21,12 +21,12 @@
 
   rowCountInput.addEventListener("input", () => (rowCountOut.textContent = rowCountInput.value));
 
-  const W = 900;
-  const PEG_TOP = 90;
-  const ROW_GAP = 58;
-  const USABLE_WIDTH = W * 0.82;
+  const W = 1200;
+  const PEG_TOP = 170;
+  const ROW_GAP = 62;
+  const USABLE_WIDTH = W * 0.9;
   const FUNNEL_GAP = 24;
-  const FUNNEL_HEIGHT = 170;
+  const FUNNEL_HEIGHT = 260;
   const BOTTOM_MARGIN = 30;
 
   const BALL_RADIUS = 17;
@@ -128,9 +128,16 @@
     });
 
     const wallOpts = { isStatic: true, render: { fillStyle: "#232849" } };
+    const centerLeft = (W - USABLE_WIDTH) / 2;
+    // Guide walls run flush with the peg field's outer edge — from the top
+    // all the way down into the funnel — so there's no gap beside the pegs
+    // for a ball to slip straight down the side without ever touching one.
+    const EDGE_PAD = PEG_RADIUS + 8;
+    const edgeLeftX = centerLeft - EDGE_PAD;
+    const edgeRightX = centerLeft + USABLE_WIDTH + EDGE_PAD;
     const walls = [
-      Bodies.rectangle(-10, H / 2, 20, H, wallOpts),
-      Bodies.rectangle(W + 10, H / 2, 20, H, wallOpts),
+      Bodies.rectangle(edgeLeftX, fTop / 2, 12, fTop, wallOpts),
+      Bodies.rectangle(edgeRightX, fTop / 2, 12, fTop, wallOpts),
     ];
 
     // Peg field — a classic alternating Galton-board lattice for chaotic bouncing.
@@ -140,7 +147,6 @@
     const minPegSpacing = BALL_DIAMETER * 1.35 + PEG_RADIUS * 2;
     const pegsPerRow = Math.max(3, Math.floor(USABLE_WIDTH / minPegSpacing));
     const pegSpacing = USABLE_WIDTH / pegsPerRow;
-    const centerLeft = (W - USABLE_WIDTH) / 2;
     for (let r = 0; r < rows; r++) {
       const y = PEG_TOP + r * ROW_GAP;
       const offset = r % 2 === 0 ? pegSpacing / 2 : 0;
@@ -159,10 +165,12 @@
       }
     }
 
-    // Funnel: two angled walls narrowing from the full peg field down to one neck
+    // Funnel: two angled walls narrowing from the guide walls down to one neck.
+    // Starting points match edgeLeftX/edgeRightX exactly so there's no gap
+    // where the boundary meets the taper.
     const funnel = [
-      wallFromPoints(centerLeft, fTop, W / 2 - neckWidth / 2, fBottom, 8),
-      wallFromPoints(centerLeft + USABLE_WIDTH, fTop, W / 2 + neckWidth / 2, fBottom, 8),
+      wallFromPoints(edgeLeftX, fTop, W / 2 - neckWidth / 2, fBottom, 8),
+      wallFromPoints(edgeRightX, fTop, W / 2 + neckWidth / 2, fBottom, 8),
     ];
 
     // Single-file tube below the funnel where balls stack in arrival order

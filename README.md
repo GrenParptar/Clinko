@@ -13,9 +13,11 @@ Clinko is a Plinko-style randomizer that uses real 2D physics ([Matter.js](https
 
 ## Features
 
-- Configurable ball count (1–80) and peg row count (6–16)
+- Configurable ball count (1–80) and peg row count (6–20, for a longer or shorter drop)
 - All balls drop simultaneously — no staggered releases
-- Glossy, shaded **3D-look spheres** (radial-gradient rendering) for both balls and pegs
+- Big, glossy, shaded **3D-look spheres** (radial-gradient rendering) for both balls and pegs, with exaggerated bouncy, slow-motion physics
+- A near-full-screen board with a long peg field, so balls travel a good distance before reaching the funnel
+- Solid guide walls run flush with the peg field's outer edge the whole way down — there's no gap beside the pegs, so a ball can never just slide down the side and skip the obstacle course
 - A single funnel/chute design — no multiple landing zones, just one clean finishing order
 - Live-updating standings as each ball crosses the finish line, with an in-board rank tag next to every ball
 - Anti-jam nudging so balls arching above the narrow neck (a real granular-flow phenomenon) get jostled loose automatically
