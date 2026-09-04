@@ -152,18 +152,24 @@
     // Peg field — a classic alternating Galton-board lattice for chaotic bouncing.
     // Horizontal density is sized off the ball/peg dimensions (not the row
     // count) so bigger balls always have a wide-enough gap to fall through.
+    // The full-width rows are anchored so their outermost pegs' edges sit
+    // right against the walls' inner faces (touching, not just close) —
+    // the offset rows in between recess evenly by half a spacing on both
+    // sides, which is the normal look for the alternating zigzag lattice.
     const pegs = [];
+    const wallInnerLeft = edgeLeftX + WALL_THICKNESS / 2;
+    const wallInnerRight = edgeRightX - WALL_THICKNESS / 2;
+    const pegRangeLeft = wallInnerLeft + PEG_RADIUS;
+    const pegRangeRight = wallInnerRight - PEG_RADIUS;
+    const playWidth = pegRangeRight - pegRangeLeft;
     const minPegSpacing = BALL_DIAMETER * 1.35 + PEG_RADIUS * 2;
-    const pegsPerRow = Math.max(3, Math.floor(USABLE_WIDTH / minPegSpacing));
-    const pegSpacing = USABLE_WIDTH / pegsPerRow;
+    const pegsPerRow = Math.max(3, Math.floor(playWidth / minPegSpacing) + 1);
+    const pegSpacing = playWidth / (pegsPerRow - 1);
     for (let r = 0; r < rows; r++) {
       const y = PEG_TOP + r * ROW_GAP;
-      const count = r % 2 === 0 ? pegsPerRow - 1 : pegsPerRow;
-      // Center each row within the usable width — rather than always
-      // anchoring its first peg at the left edge — so the leftover margin
-      // splits evenly between both sides instead of piling up on the right.
-      const rowWidth = (count - 1) * pegSpacing;
-      const rowStart = centerLeft + (USABLE_WIDTH - rowWidth) / 2;
+      const isFullRow = r % 2 !== 0;
+      const count = isFullRow ? pegsPerRow : pegsPerRow - 1;
+      const rowStart = isFullRow ? pegRangeLeft : pegRangeLeft + pegSpacing / 2;
       for (let c = 0; c < count; c++) {
         const x = rowStart + c * pegSpacing;
         pegs.push(
